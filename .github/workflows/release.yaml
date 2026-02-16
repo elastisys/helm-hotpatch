@@ -1,0 +1,63 @@
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag_exists: ${{ steps.check.outputs.tag_exists }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Extract and Check
+        id: check
+        run: |
+          VERSION=$(yq '.version' plugin.yaml)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+            echo Tag v${VERSION} already exists, skipping release.
+            echo "tag_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+  create-release:
+    needs: check-version
+    if: needs.check-version.outputs.tag_exists == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      # TODO: Signing
+      # - name: Import GPG key
+      #   run: gpg --import <(echo "${PRIVATE_SIGNING_KEY}")
+      #   env:
+      #     PRIVATE_SIGNING_KEY: ${{ secrets.PRIVATE_SIGNING_KEY }}
+
+      - name: Package
+        run: make package
+        # TODO: Signing
+        # env:
+        #   HOTPATCH_SIGNING_KEY_EMAIL: ${{ vars.SIGNING_KEY_EMAIL }}
+
+      - name: Release
+        # TODO: Signing
+        # run: gh release create "v${VERSION}" hotpatch-*.tgz hotpatch-*.tgz.prov --generate-notes
+        run: gh release create "v${VERSION}" hotpatch-*.tgz --generate-notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check-version.outputs.version }}
