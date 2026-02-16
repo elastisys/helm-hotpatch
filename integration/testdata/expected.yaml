@@ -1,0 +1,27 @@
+---
+# Source: testchart/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: test
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: http
+  type: ClusterIP
+---
+# Source: testchart/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: test
+spec:
+  rules:
+  - http:
+      paths:
+      - backend:
+          service:
+            port:
+              number: 1234
