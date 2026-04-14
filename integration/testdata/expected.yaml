@@ -19,9 +19,13 @@ metadata:
   name: test
 spec:
   rules:
-  - http:
+  - host: chart-example.local
+    http:
       paths:
       - backend:
           service:
+            name: test
             port:
               number: 1234
+        path: /
+        pathType: ImplementationSpecific

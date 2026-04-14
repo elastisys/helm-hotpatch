@@ -3,12 +3,12 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    postrenderer.helm.sh/postrender-filename: foo
+    postrenderer.helm.sh/postrender-filename: foo-patch
   name: my-service
 spec:
   ports:
   - port: 80
     protocol: TCP
-    targetPort: 8080
+    targetPort: 9376
   selector:
     app.kubernetes.io/name: MyApp

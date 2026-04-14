@@ -2,6 +2,18 @@
 apiVersion: v1
 kind: Service
 metadata:
+  name: new-extra-service
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 1234
+  selector:
+    app.kubernetes.io/name: MyApp
+---
+apiVersion: v1
+kind: Service
+metadata:
   annotations:
     postrenderer.helm.sh/postrender-filename: foo
   name: my-service

@@ -13,11 +13,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
+const helmPostRendererFilenameAnnotation = "postrenderer.helm.sh/postrender-filename"
+
 type YAMLPatcher struct {
-	patches Patches
+	patches PatchMap
 }
 
-func NewYAMLPatcher(patches Patches) *YAMLPatcher {
+func NewYAMLPatcher(patches PatchMap) *YAMLPatcher {
 	return &YAMLPatcher{patches: patches}
 }
 
@@ -36,9 +38,7 @@ func (y *YAMLPatcher) Run(ctx context.Context, r io.Reader, w io.Writer) error {
 	slog.InfoContext(
 		ctx,
 		"running YAML patcher",
-		slog.Int("addCount", len(y.patches.Add)),
-		slog.Int("patchCount", len(y.patches.Patch)),
-		slog.Int("removeCount", len(y.patches.Remove)),
+		slog.Int("patchCount", len(y.patches)),
 	)
 
 out:
@@ -51,51 +51,46 @@ out:
 			return fmt.Errorf("failed to decode raw document: %w", err)
 		}
 
+		target := PatchTarget(obj.GetAnnotations()[helmPostRendererFilenameAnnotation])
+		if target == "" {
+			return fmt.Errorf(
+				"input object (gvk: '%s' namespace: '%s' name: '%s') missing annotation %s",
+				obj.GroupVersionKind(), obj.GetNamespace(), obj.GetName(), helmPostRendererFilenameAnnotation,
+			)
+		}
+
 		objLog := slog.With(
 			slog.String("group", obj.GroupVersionKind().Group),
 			slog.String("version", obj.GroupVersionKind().Version),
 			slog.String("kind", obj.GroupVersionKind().Kind),
 			slog.String("namespace", obj.GetNamespace()),
 			slog.String("name", obj.GetName()),
+			slog.String("target", string(target)),
 		)
 
 		objLog.DebugContext(ctx, "processing")
 
-		for _, rObj := range y.patches.Remove {
-			if patchApplies(obj, rObj) {
-				objLog.DebugContext(ctx, "removing")
-				continue out
+		for _, p := range y.patches[target] {
+			switch p.Action {
+			case PatchActionAdd:
+				if err := encoder.Encode(p.Data); err != nil {
+					return fmt.Errorf("failed write output: %w", err)
+				}
+
+			case PatchActionPatch:
+				if patchApplies(obj, p.Data) {
+					merge(obj.Object, p.Data.Object)
+				}
+
+			case PatchActionRemove:
+				if patchApplies(obj, p.Data) {
+					continue out
+				}
 			}
-		}
-
-		for _, pObj := range y.patches.Patch {
-			if !patchApplies(obj, pObj) {
-				continue
-			}
-
-			objLog.DebugContext(ctx, "patching")
-
-			merge(obj.Object, pObj.Object)
 		}
 
 		if err := encoder.Encode(obj); err != nil {
 			return fmt.Errorf("failed write output: %w", err)
-		}
-	}
-
-	for _, obj := range y.patches.Add {
-		slog.DebugContext(
-			ctx,
-			"adding",
-			slog.String("group", obj.GroupVersionKind().Group),
-			slog.String("version", obj.GroupVersionKind().Version),
-			slog.String("kind", obj.GroupVersionKind().Kind),
-			slog.String("namespace", obj.GetNamespace()),
-			slog.String("name", obj.GetName()),
-		)
-
-		if err := encoder.Encode(obj); err != nil {
-			return fmt.Errorf("failed write patch to output: %w", err)
 		}
 	}
 
