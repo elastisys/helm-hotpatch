@@ -62,10 +62,10 @@ func readFile(t *testing.T, path string) string {
 	return string(b)
 }
 
-func loadPatchesFromDir(t *testing.T, path string) yamlpatcher.Patches {
+func loadPatchesFromDir(t *testing.T, path string) yamlpatcher.PatchMap {
 	t.Helper()
 
-	patches, err := yamlpatcher.LoadPatchesFromDir(t.Context(), path)
+	patches, err := yamlpatcher.LoadPatchMapFromDir(t.Context(), path)
 	require.NoError(t, err)
 	return patches
 }

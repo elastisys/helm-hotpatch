@@ -1,0 +1,32 @@
+target: foo
+patches:
+  - action: patch
+    data:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: my-service
+      spec:
+        ports:
+          - protocol: TCP
+            port: 80
+            targetPort: 8080
+  - action: remove
+    data:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: extra-service
+  - action: add
+    data:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: new-extra-service
+      spec:
+        selector:
+          app.kubernetes.io/name: MyApp
+        ports:
+          - protocol: TCP
+            port: 80
+            targetPort: 8080

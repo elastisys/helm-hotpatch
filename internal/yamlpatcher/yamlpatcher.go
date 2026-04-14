@@ -14,10 +14,10 @@ import (
 )
 
 type YAMLPatcher struct {
-	patches Patches
+	patches PatchMap
 }
 
-func NewYAMLPatcher(patches Patches) *YAMLPatcher {
+func NewYAMLPatcher(patches PatchMap) *YAMLPatcher {
 	return &YAMLPatcher{patches: patches}
 }
 
@@ -36,9 +36,7 @@ func (y *YAMLPatcher) Run(ctx context.Context, r io.Reader, w io.Writer) error {
 	slog.InfoContext(
 		ctx,
 		"running YAML patcher",
-		slog.Int("addCount", len(y.patches.Add)),
-		slog.Int("patchCount", len(y.patches.Patch)),
-		slog.Int("removeCount", len(y.patches.Remove)),
+		slog.Int("patchCount", len(y.patches)),
 	)
 
 out:

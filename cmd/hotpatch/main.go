@@ -33,7 +33,7 @@ func run(ctx context.Context) error {
 		return nil
 	}
 
-	patches, err := yamlpatcher.LoadPatchesFromDir(ctx, rootPath)
+	patches, err := yamlpatcher.LoadPatchMapFromDir(ctx, rootPath)
 	if err != nil {
 		return fmt.Errorf("load patches: %w", err)
 	}
