@@ -2,23 +2,25 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: my-service
-spec:
-  ports:
-  - port: 80
-    protocol: TCP
-    targetPort: 9376
-  selector:
-    app.kubernetes.io/name: MyApp
----
-apiVersion: v1
-kind: Service
-metadata:
   name: extra-service
 spec:
   ports:
   - port: 80
     protocol: TCP
     targetPort: 8080
+  selector:
+    app.kubernetes.io/name: MyApp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    postrenderer.helm.sh/postrender-filename: foo
+  name: my-service
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 9376
   selector:
     app.kubernetes.io/name: MyApp

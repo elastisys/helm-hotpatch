@@ -18,8 +18,9 @@ const (
 )
 
 var (
-	chartPath   = filepath.Join(testdataPath, "chart")
-	patchesPath = filepath.Join(testdataPath, "patches")
+	chartPath    = filepath.Join(testdataPath, "chart")
+	patchesPath  = filepath.Join(testdataPath, "patches")
+	expectedPath = filepath.Join(testdataPath, "expected.yaml")
 )
 
 func TestIntegration(t *testing.T) {
@@ -44,7 +45,7 @@ func TestIntegration(t *testing.T) {
 
 	runMake(t, t.Context(), "install")
 
-	expected, err := os.ReadFile("./testdata/expected.yaml")
+	expected, err := os.ReadFile(expectedPath)
 	require.NoError(t, err)
 
 	t.Run("flag", func(t *testing.T) {

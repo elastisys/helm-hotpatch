@@ -33,15 +33,29 @@ func run(ctx context.Context) error {
 		return nil
 	}
 
-	patches, err := yamlpatcher.LoadPatchesFromDir(ctx, rootPath)
+	patches, err := yamlpatcher.LoadPatchMapFromDir(ctx, rootPath)
 	if err != nil {
 		return fmt.Errorf("load patches: %w", err)
 	}
 
 	yp := yamlpatcher.NewYAMLPatcher(patches)
 
-	if err := yp.Run(ctx, os.Stdin, os.Stdout); err != nil {
-		return fmt.Errorf("process: %w", err)
+	objectsWritten, err := yp.Run(ctx, os.Stdin, os.Stdout)
+	if err != nil {
+		return fmt.Errorf("run YAML patcher: %w", err)
+	}
+
+	// Helm thinks empty output from a post-renderer is an error. While this
+	// is probably usually the case, there are actually legitimate cases. For
+	// example:
+	// * The Helm chart that is being rendered is itself empty.
+	// * Patches remove all objects.
+	// To work around this issue we print a single YAML null.
+	// See: https://github.com/helm/helm/issues/31894
+	if objectsWritten == 0 {
+		if _, err := os.Stdout.Write([]byte("null")); err != nil {
+			return fmt.Errorf("write 'null' to stdout: %w", err)
+		}
 	}
 
 	return nil
@@ -53,7 +67,7 @@ func main() {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	if err := run(context.Background()); err != nil {
-		fmt.Fprintf(os.Stderr, "Error:  %s\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}
 }

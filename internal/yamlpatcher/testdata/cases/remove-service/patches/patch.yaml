@@ -1,0 +1,8 @@
+target: foo
+patches:
+  - action: remove
+    data:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: extra-service
