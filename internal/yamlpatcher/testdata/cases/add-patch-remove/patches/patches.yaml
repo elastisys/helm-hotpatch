@@ -1,5 +1,18 @@
 target: foo
 patches:
+  - action: add
+    data:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: new-extra-service
+      spec:
+        selector:
+          app.kubernetes.io/name: MyApp
+        ports:
+          - protocol: TCP
+            port: 80
+            targetPort: 1234
   - action: patch
     data:
       apiVersion: v1
@@ -17,16 +30,3 @@ patches:
       kind: Service
       metadata:
         name: extra-service
-  - action: add
-    data:
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: new-extra-service
-      spec:
-        selector:
-          app.kubernetes.io/name: MyApp
-        ports:
-          - protocol: TCP
-            port: 80
-            targetPort: 1234

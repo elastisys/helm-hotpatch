@@ -26,7 +26,8 @@ func TestYAMLPatcher(t *testing.T) {
 			yp := yamlpatcher.NewYAMLPatcher(loadPatchesFromDir(t, patchesPath))
 
 			out := &bytes.Buffer{}
-			require.NoError(t, yp.Run(t.Context(), openFile(t, inputPath), out))
+			_, err := yp.Run(t.Context(), openFile(t, inputPath), out)
+			require.NoError(t, err)
 
 			if _, ok := os.LookupEnv("HELM_HOTPATCH_TEST_WRITEBACK"); ok {
 				f := openFile(t, expectedPath)
