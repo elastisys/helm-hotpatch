@@ -53,7 +53,9 @@ func run(ctx context.Context) error {
 	// To work around this issue we print a single YAML null.
 	// See: https://github.com/helm/helm/issues/31894
 	if objectsWritten == 0 {
-		os.Stdout.Write([]byte("null"))
+		if _, err := os.Stdout.Write([]byte("null")); err != nil {
+			return fmt.Errorf("write 'null' to stdout: %w", err)
+		}
 	}
 
 	return nil
