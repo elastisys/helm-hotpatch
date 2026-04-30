@@ -38,6 +38,27 @@ type Patches struct {
 
 type PatchMap map[PatchTarget]PatchList
 
+func (pm PatchMap) PatchCount() (count int) {
+	for _, pl := range pm {
+		count += len(pl)
+	}
+	return
+}
+
+func (pm PatchMap) Unapplied() PatchMap {
+	unapplied := make(PatchMap)
+
+	for target, pl := range pm {
+		for _, p := range pl {
+			if !p.applied {
+				unapplied[target] = append(unapplied[target], p)
+			}
+		}
+	}
+
+	return unapplied
+}
+
 func (pm PatchMap) Apply(ctx context.Context, obj *unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 	target := PatchTarget(obj.GetAnnotations()[helmPostRendererFilenameAnnotation])
 	if target == "" {
@@ -47,78 +68,76 @@ func (pm PatchMap) Apply(ctx context.Context, obj *unstructured.Unstructured) ([
 	pl := pm[target]
 
 	if len(pl) == 0 {
-		return []*unstructured.Unstructured{}, nil
+		return []*unstructured.Unstructured{obj}, nil
 	}
 
-	return pl.Apply(ctx, obj)
+	newObjs, err := pl.Apply(ctx, obj)
+	if err != nil {
+		return nil, fmt.Errorf("apply patch list: %w", err)
+	}
+
+	return newObjs, nil
 }
 
 func (pl PatchList) Apply(ctx context.Context, obj *unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 	newObjs := []*unstructured.Unstructured{}
 
+	var removed bool
+
 	objLog := slog.With(
-		slog.String("group", obj.GroupVersionKind().Group),
-		slog.String("version", obj.GroupVersionKind().Version),
-		slog.String("kind", obj.GroupVersionKind().Kind),
-		slog.String("namespace", obj.GetNamespace()),
-		slog.String("name", obj.GetName()),
-		// slog.String("target", string(target)),
+		slog.Group("obj",
+			slog.String("group", obj.GroupVersionKind().Group),
+			slog.String("version", obj.GroupVersionKind().Version),
+			slog.String("kind", obj.GroupVersionKind().Kind),
+			slog.String("namespace", obj.GetNamespace()),
+			slog.String("name", obj.GetName()),
+		),
 	)
-	objLog.DebugContext(ctx, "processing")
 
 	for _, p := range pl {
-		patchLog := objLog.With(slog.String("action", string(p.Action)))
+		patchLog := objLog.With(
+			slog.Group("patch",
+				slog.String("action", string(p.Action)),
+				slog.String("group", p.Data.GroupVersionKind().Group),
+				slog.String("version", p.Data.GroupVersionKind().Version),
+				slog.String("kind", p.Data.GroupVersionKind().Kind),
+				slog.String("namespace", p.Data.GetNamespace()),
+				slog.String("name", p.Data.GetName()),
+			),
+		)
 
-		patchLog.Debug("found patch targeting this file")
+		patchLog.DebugContext(ctx, "processing patch")
 
-		out, err := p.Apply(obj)
-		if err != nil {
-			return nil, fmt.Errorf("apply patch: %w", err)
+		isMatch := objMatch(obj, p.Data)
+
+		switch p.Action {
+		case PatchActionAdd:
+			if isMatch {
+				return nil, fmt.Errorf("trying to add object that already exists")
+			} else if !p.applied {
+				p.applied = true
+				newObjs = append(newObjs, p.Data)
+			}
+		case PatchActionPatch:
+			if isMatch {
+				p.applied = true
+				merge(obj.Object, p.Data.Object)
+			}
+		case PatchActionRemove:
+			if isMatch {
+				p.applied = true
+				removed = true
+			}
+		default:
+			return nil, fmt.Errorf("unsupported patch action: %s", p.Action)
 		}
-
-		// if out != nil {
-		newObjs = append(newObjs, out...)
-		// }
 	}
 
-	// if len(newObjs) == 0 {
-	// 	return []*unstructured.Unstructured{obj}, nil
-	// }
+	if !removed {
+		newObjs = append(newObjs, obj)
+	}
 
 	return newObjs, nil
-}
-
-func (p *Patch) Apply(obj *unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-	if p.applied {
-		return nil, nil
-	}
-
-	isMatch := objMatch(obj, p.Data)
-
-	switch p.Action {
-	case PatchActionAdd:
-		if isMatch {
-			return nil, fmt.Errorf("trying to add object that already exists")
-		}
-		p.applied = true
-		return []*unstructured.Unstructured{p.Data}, nil
-
-	case PatchActionPatch:
-		if isMatch {
-			p.applied = true
-			merge(obj.Object, p.Data.Object)
-		}
-		return []*unstructured.Unstructured{obj}, nil
-
-	case PatchActionRemove:
-		if isMatch {
-			p.applied = true
-			return nil, nil
-		}
-		return []*unstructured.Unstructured{}, nil
-	default:
-		return nil, fmt.Errorf("unsupported patch action: %s", p.Action)
-	}
 }
 
 func LoadPatchesFromFile(path string) (Patches, error) {
