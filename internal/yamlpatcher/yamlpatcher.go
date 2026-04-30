@@ -65,17 +65,5 @@ func (y *YAMLPatcher) Run(ctx context.Context, r io.Reader, w io.Writer) (int, e
 		objectsWritten += len(newObjs)
 	}
 
-	unappliedPatches := y.patches.Unapplied()
-	if len(unappliedPatches) != 0 {
-		var summary string
-		for target, pl := range unappliedPatches {
-			summary += fmt.Sprintf("\ttarget: %s\n", target)
-			for _, p := range pl {
-				summary += fmt.Sprintf("\t\taction: %s, gvk: %s\n", p.Action, p.Data.GetObjectKind().GroupVersionKind())
-			}
-		}
-		return 0, fmt.Errorf("unapplied patches:\n%s", summary)
-	}
-
 	return objectsWritten, nil
 }

@@ -67,7 +67,7 @@ func main() {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	if err := run(context.Background()); err != nil {
-		fmt.Fprintf(os.Stderr, "Error:  %s\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}
 }

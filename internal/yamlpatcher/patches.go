@@ -45,20 +45,6 @@ func (pm PatchMap) PatchCount() (count int) {
 	return
 }
 
-func (pm PatchMap) Unapplied() PatchMap {
-	unapplied := make(PatchMap)
-
-	for target, pl := range pm {
-		for _, p := range pl {
-			if !p.applied {
-				unapplied[target] = append(unapplied[target], p)
-			}
-		}
-	}
-
-	return unapplied
-}
-
 func (pm PatchMap) Apply(ctx context.Context, obj *unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 	target := PatchTarget(obj.GetAnnotations()[helmPostRendererFilenameAnnotation])
 	if target == "" {
@@ -115,18 +101,27 @@ func (pl PatchList) Apply(ctx context.Context, obj *unstructured.Unstructured) (
 			if isMatch {
 				return nil, fmt.Errorf("trying to add object that already exists")
 			} else if !p.applied {
+				patchLog.DebugContext(ctx, "applying patch")
 				p.applied = true
 				newObjs = append(newObjs, p.Data)
+			} else {
+				patchLog.DebugContext(ctx, "already applied")
 			}
 		case PatchActionPatch:
 			if isMatch {
+				patchLog.DebugContext(ctx, "applying patch")
 				p.applied = true
 				merge(obj.Object, p.Data.Object)
+			} else {
+				patchLog.DebugContext(ctx, "does not apply")
 			}
 		case PatchActionRemove:
 			if isMatch {
+				patchLog.DebugContext(ctx, "applying patch")
 				p.applied = true
 				removed = true
+			} else {
+				patchLog.DebugContext(ctx, "does not apply")
 			}
 		default:
 			return nil, fmt.Errorf("unsupported patch action: %s", p.Action)
