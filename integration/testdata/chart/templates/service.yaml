@@ -3,9 +3,9 @@ kind: Service
 metadata:
   name: test
 spec:
-  type: {{ .Values.service.type }}
   ports:
-  - port: {{ .Values.service.port }}
-    targetPort: http
+  - name: http
+    port: {{ .Values.service.port }}
     protocol: TCP
-    name: http
+    targetPort: http
+  type: {{ .Values.service.type }}
